@@ -274,13 +274,13 @@
   .seg button:hover {
     color: var(--text);
   }
-  .seg button[aria-pressed="true"] {
+  .seg button[aria-selected="true"] {
     background: var(--bg-surface);
     color: var(--text);
     box-shadow: 0 1px 0 rgba(0, 0, 0, 0.25),
       inset 0 0 0 1px var(--border-subtle);
   }
-  :root[data-theme="light"] .seg button[aria-pressed="true"] {
+  :root[data-theme="light"] .seg button[aria-selected="true"] {
     background: #ffffff;
     box-shadow: 0 1px 0 rgba(8, 9, 10, 0.06),
       inset 0 0 0 1px var(--border-subtle);
