@@ -94,17 +94,6 @@ const ONE_OFFS: readonly Omit<Template, 'daysOfWeek' | 'weekly'>[] = [
   { title: 'Performance review prep',  color: 'violet',  startHour: 16, startMin: 0,  duration: 60 },
 ];
 
-const ALL_DAY_EVENTS: readonly { title: string; color: EventColor }[] = [
-  { title: 'Conf: ReactConf',          color: 'indigo' },
-  { title: 'Conf: ReactConf',          color: 'indigo' },
-  { title: 'PTO — Cabin trip',         color: 'emerald' },
-  { title: 'PTO — Cabin trip',         color: 'emerald' },
-  { title: 'PTO — Cabin trip',         color: 'emerald' },
-  { title: 'WFH',                      color: 'sky' },
-  { title: 'On-call',                  color: 'rose' },
-  { title: 'On-call',                  color: 'rose' },
-];
-
 function eventAt(
   day: number,
   hour: number,
