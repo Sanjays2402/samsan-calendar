@@ -32,7 +32,7 @@ export type CalEvent = {
   updatedAt: number;
 };
 
-export type ViewMode = 'month' | 'week' | 'day';
+export type ViewMode = 'month' | 'week' | 'day' | 'agenda';
 
 export type Theme = 'system' | 'dark' | 'light';
 

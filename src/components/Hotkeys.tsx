@@ -8,6 +8,7 @@ import {
   todayMs,
 } from '../lib/date';
 import { uid } from '../lib/uid';
+import type { ViewMode } from '../types';
 
 function isTypingTarget(el: EventTarget | null): boolean {
   if (!(el instanceof HTMLElement)) return false;
@@ -17,9 +18,13 @@ function isTypingTarget(el: EventTarget | null): boolean {
   return false;
 }
 
-/** Step size in days for the active view: day=1, week=7, month=7. */
-function stepDays(view: 'day' | 'week' | 'month'): number {
-  return view === 'day' ? 1 : 7;
+/** Step size in days for the active view: day=1, week/month=7, agenda=1. */
+function stepDays(view: ViewMode): number {
+  if (view === 'day') return 1;
+  if (view === 'agenda') return 1;
+  // week + month both navigate a week at a time with j/k — month users still
+  // want a week-step there because day-step inside a month feels too small.
+  return 7;
 }
 
 export function Hotkeys() {
@@ -89,6 +94,13 @@ export function Hotkeys() {
           e.preventDefault();
           setView('day');
           return;
+        case 'a':
+        case 'A':
+          // Conflict-free: no existing single-key binding for `a`. Mirrors
+          // m/w/d so all four views are reachable from the keyboard.
+          e.preventDefault();
+          setView('agenda');
+          return;
         case 'j':
           e.preventDefault();
           setCursor(addDaysMs(cursor, step));
@@ -106,10 +118,14 @@ export function Hotkeys() {
           setCursor(addDaysMs(cursor, -1));
           return;
         case 'ArrowDown':
+          // In agenda view the user expects ArrowDown to scroll the list, not
+          // re-anchor the window. Leave the default scroll behaviour intact.
+          if (view === 'agenda') return;
           e.preventDefault();
           setCursor(addDaysMs(cursor, view === 'month' ? 7 : 1));
           return;
         case 'ArrowUp':
+          if (view === 'agenda') return;
           e.preventDefault();
           setCursor(addDaysMs(cursor, view === 'month' ? -7 : -1));
           return;

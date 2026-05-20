@@ -8,7 +8,9 @@
     "build": "tsc -b --noEmit && vite build",
     "preview": "vite preview --port 5173 --strictPort",
     "typecheck": "tsc -b --noEmit",
-    "test:data": "node --import tsx --test tests/data.smoke.test.ts"
+    "test:data": "node --import tsx --test tests/data.smoke.test.ts",
+    "test:palette": "node --import tsx --test tests/palette.test.ts",
+    "test:agenda": "node --import tsx --test tests/agenda.test.ts"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.7",
@@ -16,6 +18,7 @@
     "idb": "^8.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "rrule": "^2.8.1",
     "zustand": "^5.0.2"
   },
   "devDependencies": {

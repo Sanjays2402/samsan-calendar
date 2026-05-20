@@ -26,11 +26,21 @@ const VIEW_LABEL: Record<ViewMode, string> = {
   month: 'Month',
   week: 'Week',
   day: 'Day',
+  agenda: 'Agenda',
 };
+
+/**
+ * Agenda view pages forward in 30-day chunks. The list is dense, scrolls
+ * inside its own pane, and j/k still nudge the cursor by a single day — but
+ * the top-bar arrows feel useless if they only shift the window by 1 day,
+ * so we use the same step as month nav.
+ */
+const AGENDA_STEP_DAYS = 30;
 
 function navStep(view: ViewMode): (ms: number, dir: 1 | -1) => number {
   if (view === 'day') return (ms, dir) => addDaysMs(ms, dir);
   if (view === 'week') return (ms, dir) => addDaysMs(ms, 7 * dir);
+  if (view === 'agenda') return (ms, dir) => addDaysMs(ms, AGENDA_STEP_DAYS * dir);
   return (ms, dir) => {
     const d = new Date(ms);
     d.setDate(1);
@@ -49,6 +59,13 @@ function headerTitle(view: ViewMode, cursor: number): string {
       return `${fmt(start, 'MMM d')} – ${fmt(end, 'd, yyyy')}`;
     }
     return `${fmt(start, 'MMM d')} – ${fmt(end, 'MMM d, yyyy')}`;
+  }
+  if (view === 'agenda') {
+    // Agenda shows a 60-day forward window; the header reads as the
+    // anchor date with a quiet "upcoming" suffix. Range syntax felt heavy
+    // for what is conceptually "from <date> onward".
+    const start = startOfDayMs(cursor);
+    return `${fmt(start, 'MMM d, yyyy')} · upcoming`;
   }
   return fmt(cursor, 'MMMM yyyy');
 }
@@ -174,12 +191,15 @@ export function TopBar() {
       </h1>
 
       <div className="seg" role="tablist" aria-label="View">
-        {(['day', 'week', 'month'] as const).map((v) => (
+        {(['day', 'week', 'month', 'agenda'] as const).map((v) => (
           <button
             key={v}
             type="button"
             role="tab"
-            aria-pressed={view === v}
+            // role="tab" requires aria-selected, not aria-pressed.
+            // axe aria-allowed-attr was failing on this. (SAM-68)
+            aria-selected={view === v}
+            tabIndex={view === v ? 0 : -1}
             onClick={() => pickView(v)}
             title={`${VIEW_LABEL[v]} (${v[0]})`}
           >
