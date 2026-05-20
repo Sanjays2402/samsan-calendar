@@ -14,6 +14,8 @@
  *
  * Run with: pnpm test:recur
  */
+import 'fake-indexeddb/auto';
+import { IDBFactory } from 'fake-indexeddb';
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
 
@@ -24,6 +26,11 @@ import {
   occurrenceId,
 } from '../src/lib/recur';
 import { selectEventsInRange } from '../src/store/selectors';
+import {
+  _resetHydrateGuardForTests,
+  useStore,
+} from '../src/store/calendar';
+import { _resetDbForTests, loadAllEvents, setMeta } from '../src/lib/storage';
 import { eventsToIcs } from '../src/lib/ics';
 import {
   addDaysMs,

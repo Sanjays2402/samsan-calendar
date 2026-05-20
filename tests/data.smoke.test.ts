@@ -27,7 +27,7 @@ import {
   loadEventsInRange,
   setMeta,
 } from '../src/lib/storage';
-import { useStore } from '../src/store/calendar';
+import { useStore, _resetHydrateGuardForTests } from '../src/store/calendar';
 import { buildSeedEvents } from '../src/lib/seed';
 import {
   addDaysMs,
@@ -43,6 +43,7 @@ import type { CalEvent } from '../src/types';
 function resetEverything(): void {
   (globalThis as unknown as { indexedDB: IDBFactory }).indexedDB = new IDBFactory();
   _resetDbForTests();
+  _resetHydrateGuardForTests();
   useStore.setState({
     events: {},
     selectedEventId: null,
@@ -97,6 +98,8 @@ test('hydrate() called twice does not re-seed', async () => {
   assert.ok(firstCount > 0);
 
   // Reset only the in-memory store; keep IDB + seed.v1 meta intact.
+  // Also clear the hydrate-coalescing guard so the second call actually runs.
+  _resetHydrateGuardForTests();
   useStore.setState({ events: {}, hydrated: false });
   await useStore.getState().hydrate();
   const secondCount = (await loadAllEvents()).length;
@@ -106,6 +109,33 @@ test('hydrate() called twice does not re-seed', async () => {
     firstCount,
     'store rehydrates the full set from disk',
   );
+});
+
+test('concurrent hydrate() calls share work (StrictMode race regression)', async () => {
+  resetEverything();
+
+  // Fire both calls before awaiting either — this is the exact shape of
+  // React StrictMode's double-effect mount in dev.
+  const a = useStore.getState().hydrate();
+  const b = useStore.getState().hydrate();
+  await Promise.all([a, b]);
+
+  const persisted = await loadAllEvents();
+  // Seed lays down N unique events; nothing should land twice.
+  const expected = buildSeedEvents(todayMs()).length;
+  assert.equal(
+    persisted.length,
+    expected,
+    `concurrent hydrate must seed exactly once (got ${persisted.length}, expected ${expected})`,
+  );
+
+  // Belt-and-braces: no two events with the same (title, start).
+  const seen = new Set<string>();
+  for (const ev of persisted) {
+    const k = `${ev.title}@${ev.start}@${ev.end}`;
+    assert.ok(!seen.has(k), `duplicate event ${k}`);
+    seen.add(k);
+  }
 });
 
 test('seedIfEmpty is a no-op when store has events, inserts when empty', async () => {
@@ -192,6 +222,59 @@ test('undo + redo restore prior state through IDB', async () => {
   await useStore.getState().redo(); // re-apply delete
   persisted = await loadAllEvents();
   assert.equal(persisted.length, 0, 'redo of delete removes again');
+});
+
+test('upsertEvent + commitEvent(prev=null) is undoable as a create (regression: n+Save)', async () => {
+  // Reproduces the SAM-CAL-POLISH bug where pressing `n` then Save logged
+  // an `update` undo entry (draft → filled) so undo restored an empty draft
+  // instead of removing the event.
+  resetEverything();
+  await setMeta('seed.v1', true);
+  await useStore.getState().hydrate();
+
+  const baseline = (await loadAllEvents()).length;
+  const id = uid();
+  const start = addMinutesMs(startOfDayMs(todayMs()), 14 * 60);
+  const draft: CalEvent = {
+    id,
+    title: '',
+    start,
+    end: addMinutesMs(start, 60),
+    color: 'indigo',
+    updatedAt: Date.now(),
+  };
+
+  // Hotkeys `n` flow: write the draft without history.
+  await useStore.getState().upsertEvent(draft);
+  // Editor commits filled-in event with prev=null so commitEvent logs `create`.
+  const filled: CalEvent = { ...draft, title: 'New from n', updatedAt: Date.now() };
+  await useStore.getState().updateEvent(filled, { history: false });
+  await useStore.getState().commitEvent(id, null, 'Create event');
+
+  assert.equal(
+    (await loadAllEvents()).length,
+    baseline + 1,
+    'after save the event is in IDB',
+  );
+
+  await useStore.getState().undo();
+  assert.equal(
+    (await loadAllEvents()).length,
+    baseline,
+    'undo of a fresh-draft create REMOVES the event (not revert-to-draft)',
+  );
+  assert.equal(
+    useStore.getState().events[id],
+    undefined,
+    'undo also clears in-memory map',
+  );
+
+  await useStore.getState().redo();
+  assert.equal(
+    useStore.getState().events[id]?.title,
+    'New from n',
+    'redo restores the filled-in event',
+  );
 });
 
 test('loadEventsInRange returns only events overlapping the window', async () => {

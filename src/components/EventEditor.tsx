@@ -35,8 +35,19 @@ const POP_HEIGHT_GUESS = 380;
 
 export function EventEditor({ event, anchor, onClose }: Props) {
   const updateEvent = useStore((s) => s.updateEvent);
+  const commitEvent = useStore((s) => s.commitEvent);
   const deleteEvent = useStore((s) => s.deleteEvent);
   const setDraft = useStore((s) => s.setDraft);
+  /**
+   * When the editor opens on an event with an empty title we treat the
+   * commit as a *create* for undo purposes: undoing should remove the
+   * event entirely, not revert it back to an empty draft (SAM-CAL-POLISH).
+   * We snapshot the flag at mount time so it survives later title edits.
+   */
+  const draftIdAtOpen = useStore((s) => s.draftId);
+  const isFreshDraftRef = useRef(
+    draftIdAtOpen === event.id && event.title.trim() === '',
+  );
 
   const [title, setTitle] = useState(event.title);
   const [start, setStart] = useState(event.start);
@@ -90,7 +101,18 @@ export function EventEditor({ event, anchor, onClose }: Props) {
       rrule: trimmedRrule === '' ? undefined : trimmedRrule,
       updatedAt: Date.now(),
     };
-    await updateEvent(next);
+    if (isFreshDraftRef.current) {
+      // Write the in-memory shape without an undo entry, then call
+      // commitEvent(prev=null) which logs a single `create` action.
+      // Undo will then remove the event entirely.
+      await updateEvent(next, { history: false });
+      await commitEvent(next.id, null, 'Create event');
+      // Subsequent saves on the same event in the same editor session
+      // should be normal updates, not duplicate creates.
+      isFreshDraftRef.current = false;
+    } else {
+      await updateEvent(next);
+    }
     setDraft(null);
     onClose();
   }

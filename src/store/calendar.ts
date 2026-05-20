@@ -35,6 +35,11 @@ const SEED_META_KEY = 'seed.v1';
  */
 let hydratePromise: Promise<void> | null = null;
 
+/** Test-only: clears the in-flight hydrate guard so tests can re-seed. */
+export function _resetHydrateGuardForTests(): void {
+  hydratePromise = null;
+}
+
 /** A single reversible mutation. */
 type UndoEntry =
   | { kind: 'delete'; events: CalEvent[]; label: string }
@@ -149,24 +154,33 @@ export const useStore = create<State & Actions>((set, get) => ({
     // Seeding is intentionally collapsed into hydrate() so the App.tsx boot
     // contract is exactly one call. seedIfEmpty() is still exposed for tests
     // and for the future "Reset to demo" path.
-    let persisted = await loadAllEvents();
-    const alreadySeeded = (await getMeta<boolean>(SEED_META_KEY)) === true;
-
-    if (!alreadySeeded && persisted.length === 0) {
-      const seedBatch = buildSeedEvents(todayMs());
-      await dbPutMany(seedBatch);
-      await setMeta(SEED_META_KEY, true);
-      persisted = await loadAllEvents();
-    } else if (!alreadySeeded && persisted.length > 0) {
-      // Pre-existing data without a meta flag (e.g. legacy DB from before this
-      // gate existed). Treat it as "already seeded" so we don't ever clobber
-      // real user events.
-      await setMeta(SEED_META_KEY, true);
+    //
+    // Concurrent calls (StrictMode dev double-mount) share the same in-flight
+    // promise so the seed gate is checked exactly once.
+    if (hydratePromise) {
+      return hydratePromise;
     }
+    hydratePromise = (async () => {
+      let persisted = await loadAllEvents();
+      const alreadySeeded = (await getMeta<boolean>(SEED_META_KEY)) === true;
 
-    const events: Record<string, CalEvent> = {};
-    for (const ev of persisted) events[ev.id] = ev;
-    set({ events, hydrated: true });
+      if (!alreadySeeded && persisted.length === 0) {
+        const seedBatch = buildSeedEvents(todayMs());
+        await dbPutMany(seedBatch);
+        await setMeta(SEED_META_KEY, true);
+        persisted = await loadAllEvents();
+      } else if (!alreadySeeded && persisted.length > 0) {
+        // Pre-existing data without a meta flag (e.g. legacy DB from before this
+        // gate existed). Treat it as "already seeded" so we don't ever clobber
+        // real user events.
+        await setMeta(SEED_META_KEY, true);
+      }
+
+      const events: Record<string, CalEvent> = {};
+      for (const ev of persisted) events[ev.id] = ev;
+      set({ events, hydrated: true });
+    })();
+    return hydratePromise;
   },
 
   setView: (view) => set({ view }),

@@ -11,6 +11,7 @@
     "test:data": "node --import tsx --test tests/data.smoke.test.ts",
     "test:palette": "node --import tsx --test tests/palette.test.ts",
     "test:agenda": "node --import tsx --test tests/agenda.test.ts",
+    "test:recur": "node --import tsx --test tests/recur.test.ts",
     "test:e2e": "node --import tsx --test tests/e2e.smoke.test.ts"
   },
   "dependencies": {

@@ -23,19 +23,27 @@
  */
 /**
  * `rrule@2.x` ships a UMD/CJS bundle in its `main` field and an ESM build
- * on `module`. Node's ESM loader picks `main` (CJS) and only exposes named
- * exports through `module.exports`; Vite picks `module` and gets the ESM
- * named exports directly. A namespace import works in both worlds — Node
- * synthesizes one from `module.exports`, Vite uses the real ESM namespace.
+ * on `module`. Node's ESM loader picks `main` (CJS) and exposes the named
+ * exports as a synthesized default; Vite picks `module` and gets the ESM
+ * named exports directly.
+ *
+ * A namespace import works in both worlds, but Vite emits a build-time
+ * warning if we *also* poke `(ns).default` (which Vite knows is undefined
+ * for the ESM build). To keep both loaders happy without the warning we
+ * funnel everything through a tiny `pickExport` helper that reads from the
+ * namespace first and only falls back to `.default` at runtime — the lookup
+ * is dynamic, so Vite's static-analysis warning doesn't trigger.
  */
 import * as rrulePkg from 'rrule';
-// Node's ESM loader treats rrule's CJS `main` as a single default export and
-// nests the named exports under `.default`; Vite picks up the ESM `module`
-// field directly. This dance gives us a single object regardless of loader.
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const rruleApi: any = (rrulePkg as any).default ?? rrulePkg;
-const RRule = rruleApi.RRule;
-const rrulestr = rruleApi.rrulestr;
+function pickExport<K extends string>(ns: any, key: K): any {
+  if (ns && ns[key] !== undefined) return ns[key];
+  if (ns && ns.default && ns.default[key] !== undefined) return ns.default[key];
+  return undefined;
+}
+const RRule = pickExport(rrulePkg, 'RRule');
+const rrulestr = pickExport(rrulePkg, 'rrulestr');
 type RRuleInstance = InstanceType<typeof RRule>;
 import type { CalEvent } from '../types';
 

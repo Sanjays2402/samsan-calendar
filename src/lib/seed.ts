@@ -110,25 +110,35 @@ export function buildSeedEvents(anchor: number = Date.now()): CalEvent[] {
   // 0 = Sun, 1 = Mon, ... 6 = Sat
   return [
     // Monday
-    ev('Standup', 1, 9, 0, 15, 'indigo', { location: 'Zoom' }),
+    // SAM-70: one recurring weekday standup series replaces the four
+    // identical Mon/Tue/Wed/Thu seed events. The view layer expands the
+    // RRULE into per-day chips and shows the recurring badge on each.
+    ev('Standup', 1, 9, 0, 15, 'indigo', {
+      location: 'Zoom',
+      rrule: 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH',
+    }),
     ev('Design review · Calendar polish', 1, 10, 30, 60, 'violet'),
     ev('Lunch w/ Mira', 1, 12, 30, 60, 'amber', { location: 'Cafe Local' }),
     ev('Focus · ship SAM-59', 1, 14, 0, 150, 'emerald'),
     ev('1:1 with Theo', 1, 17, 0, 30, 'sky'),
 
     // Tuesday
-    ev('Standup', 2, 9, 0, 15, 'indigo', { location: 'Zoom' }),
     ev('Quarterly planning', 2, 11, 0, 90, 'rose'),
     ev('Coffee · Sam', 2, 15, 30, 30, 'amber'),
 
+    // Daily morning ritual — DAILY recurrence showcases the second preset.
+    // Anchored to Tuesday so it doesn't pile on top of Monday's already-busy
+    // morning; the RRULE walks it forward and back across the visible window.
+    ev('Morning meditation', 2, 7, 30, 15, 'emerald', {
+      rrule: 'FREQ=DAILY',
+    }),
+
     // Wednesday
-    ev('Standup', 3, 9, 0, 15, 'indigo', { location: 'Zoom' }),
     ev('Customer call · Acme Co', 3, 13, 0, 45, 'sky'),
     ev('Pair · NLP parser', 3, 14, 0, 90, 'emerald'),
     allDay("Aanya's birthday 🎂", 3, 'rose'),
 
     // Thursday
-    ev('Standup', 4, 9, 0, 15, 'indigo'),
     ev('Demo · CEO review', 4, 16, 0, 30, 'violet'),
 
     // Friday — conference day (multi-day)
