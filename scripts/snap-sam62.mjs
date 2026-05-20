@@ -1,11 +1,20 @@
 import { chromium } from 'playwright';
 const OUT = '/Users/sanjay/Projects/samsan-calendar/design/screenshots/sam-62';
 const ctx = await chromium.launch({ headless: true });
-const page = await (await ctx.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 })).newPage();
+const context = await ctx.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
+// SAM-62: ensure deterministic theme — a prior run that toggled light theme would
+// otherwise persist via localStorage and contaminate the first 7 (dark-mode) shots.
+await context.addInitScript(() => {
+  try { localStorage.removeItem('samsan.theme'); } catch {}
+});
+const page = await context.newPage();
 await page.goto('http://localhost:5173/', { waitUntil: 'networkidle' });
 await page.waitForTimeout(800);
 
-// 1. Dashboard with month view (default)
+// 1. Dashboard with month view. Store default is `week`, so explicitly
+// switch to month so the filename and image agree.
+await page.keyboard.press('m');
+await page.waitForTimeout(500);
 await page.screenshot({ path: `${OUT}/01-month-view.png`, fullPage: false });
 
 // 2. Open command palette
