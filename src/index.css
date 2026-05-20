@@ -1,0 +1,349 @@
+@import "tailwindcss";
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Samsan Calendar — design tokens
+   Linear-grade dark canvas. Indigo accent. Hairline borders.
+   ────────────────────────────────────────────────────────────────────────── */
+
+@theme {
+  --font-sans:
+    "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono:
+    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+}
+
+@layer base {
+  :root {
+    color-scheme: dark light;
+
+    /* canvas */
+    --bg: #08090a;
+    --bg-panel: #0f1011;
+    --bg-surface: #191a1b;
+    --bg-surface-2: #1f2022;
+
+    /* text */
+    --text: #f7f8f8;
+    --text-2: #d0d6e0;
+    --text-3: #8a8f98;
+    --text-4: #62666d;
+
+    /* accents */
+    --accent: #5e6ad2;
+    --accent-2: #7170ff;
+    --accent-3: #828fff;
+    --accent-soft: rgba(113, 112, 255, 0.14);
+    --accent-soft-2: rgba(113, 112, 255, 0.22);
+
+    /* event colors — tuned to read on near-black */
+    --evt-indigo: #7170ff;
+    --evt-indigo-soft: rgba(113, 112, 255, 0.18);
+    --evt-emerald: #34d399;
+    --evt-emerald-soft: rgba(52, 211, 153, 0.18);
+    --evt-amber: #f4b942;
+    --evt-amber-soft: rgba(244, 185, 66, 0.18);
+    --evt-rose: #ec6a8c;
+    --evt-rose-soft: rgba(236, 106, 140, 0.18);
+    --evt-sky: #5fb3f3;
+    --evt-sky-soft: rgba(95, 179, 243, 0.18);
+    --evt-violet: #b69bff;
+    --evt-violet-soft: rgba(182, 155, 255, 0.18);
+
+    /* borders */
+    --border-subtle: rgba(255, 255, 255, 0.05);
+    --border: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.12);
+    --border-input: rgba(255, 255, 255, 0.1);
+
+    /* surfaces */
+    --hover: rgba(255, 255, 255, 0.04);
+    --hover-2: rgba(255, 255, 255, 0.06);
+    --press: rgba(255, 255, 255, 0.08);
+    --selection: var(--accent-soft);
+
+    --ring: 0 0 0 1px var(--accent-2), 0 0 0 4px rgba(113, 112, 255, 0.22);
+    --shadow-overlay:
+      0 8px 2px rgba(0, 0, 0, 0),
+      0 5px 2px rgba(0, 0, 0, 0.01),
+      0 3px 2px rgba(0, 0, 0, 0.04),
+      0 1px 1px rgba(0, 0, 0, 0.07),
+      0 0 0 1px var(--border-strong),
+      0 24px 60px rgba(0, 0, 0, 0.55);
+
+    --transition: 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  :root[data-theme="light"] {
+    color-scheme: light;
+
+    --bg: #fbfbfc;
+    --bg-panel: #ffffff;
+    --bg-surface: #ffffff;
+    --bg-surface-2: #f3f4f5;
+
+    --text: #08090a;
+    --text-2: #2a2c30;
+    --text-3: #62666d;
+    --text-4: #8a8f98;
+
+    --accent: #4f56b8;
+    --accent-2: #5e6ad2;
+    --accent-3: #4046a8;
+    --accent-soft: rgba(94, 106, 210, 0.12);
+    --accent-soft-2: rgba(94, 106, 210, 0.2);
+
+    --evt-indigo: #5e6ad2;
+    --evt-indigo-soft: rgba(94, 106, 210, 0.16);
+    --evt-emerald: #10b981;
+    --evt-emerald-soft: rgba(16, 185, 129, 0.18);
+    --evt-amber: #d18b14;
+    --evt-amber-soft: rgba(209, 139, 20, 0.18);
+    --evt-rose: #d93a6a;
+    --evt-rose-soft: rgba(217, 58, 106, 0.18);
+    --evt-sky: #2c84d8;
+    --evt-sky-soft: rgba(44, 132, 216, 0.18);
+    --evt-violet: #8b6dff;
+    --evt-violet-soft: rgba(139, 109, 255, 0.18);
+
+    --border-subtle: rgba(8, 9, 10, 0.06);
+    --border: rgba(8, 9, 10, 0.1);
+    --border-strong: rgba(8, 9, 10, 0.14);
+    --border-input: rgba(8, 9, 10, 0.12);
+
+    --hover: rgba(8, 9, 10, 0.04);
+    --hover-2: rgba(8, 9, 10, 0.06);
+    --press: rgba(8, 9, 10, 0.08);
+
+    --shadow-overlay:
+      0 8px 2px rgba(0, 0, 0, 0),
+      0 5px 2px rgba(0, 0, 0, 0.02),
+      0 3px 2px rgba(0, 0, 0, 0.04),
+      0 1px 1px rgba(0, 0, 0, 0.06),
+      0 0 0 1px var(--border-strong),
+      0 24px 60px rgba(8, 9, 10, 0.12);
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv01", "ss03";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    margin: 0;
+    overflow: hidden;
+    font-size: 13.5px;
+    line-height: 1.45;
+    letter-spacing: -0.005em;
+  }
+
+  ::selection {
+    background: var(--selection);
+    color: var(--text);
+  }
+
+  /* hairline scrollbars */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.06);
+    border: 2px solid transparent;
+    background-clip: content-box;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.12);
+    background-clip: content-box;
+  }
+  :root[data-theme="light"] ::-webkit-scrollbar-thumb {
+    background: rgba(8, 9, 10, 0.12);
+    background-clip: content-box;
+  }
+  :root[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+    background: rgba(8, 9, 10, 0.22);
+    background-clip: content-box;
+  }
+
+  button,
+  input,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+
+  :focus {
+    outline: none;
+  }
+  :focus-visible {
+    box-shadow: var(--ring);
+    border-radius: 6px;
+  }
+
+  /* shorter motion preference */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  .surface {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.02);
+    color: var(--text-2);
+    font-size: 12.5px;
+    font-weight: 510;
+    letter-spacing: -0.005em;
+    transition: background var(--transition), color var(--transition),
+      border-color var(--transition), transform var(--transition);
+  }
+  .btn:hover {
+    background: var(--hover);
+    color: var(--text);
+  }
+  .btn:active {
+    transform: translateY(0.5px);
+  }
+  .btn-icon {
+    width: 28px;
+    padding: 0;
+  }
+  .btn-primary {
+    background: var(--accent);
+    border-color: transparent;
+    color: #ffffff;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+      0 1px 0 rgba(0, 0, 0, 0.25);
+  }
+  .btn-primary:hover {
+    background: var(--accent-3);
+    color: #ffffff;
+  }
+
+  .seg {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px;
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-subtle);
+  }
+  :root[data-theme="light"] .seg {
+    background: rgba(8, 9, 10, 0.04);
+  }
+  .seg button {
+    height: 22px;
+    padding: 0 10px;
+    border-radius: 5px;
+    color: var(--text-3);
+    font-size: 12px;
+    font-weight: 510;
+    letter-spacing: -0.005em;
+    transition: background var(--transition), color var(--transition);
+  }
+  .seg button:hover {
+    color: var(--text);
+  }
+  .seg button[aria-pressed="true"] {
+    background: var(--bg-surface);
+    color: var(--text);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.25),
+      inset 0 0 0 1px var(--border-subtle);
+  }
+  :root[data-theme="light"] .seg button[aria-pressed="true"] {
+    background: #ffffff;
+    box-shadow: 0 1px 0 rgba(8, 9, 10, 0.06),
+      inset 0 0 0 1px var(--border-subtle);
+  }
+
+  .kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-3);
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    line-height: 1;
+  }
+  :root[data-theme="light"] .kbd {
+    background: rgba(8, 9, 10, 0.04);
+  }
+}
+
+/* hidden helper for SR */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* view transitions — soft fade on view switch */
+@keyframes calFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.fade-in {
+  animation: calFadeIn 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* pulsing "now" dot */
+@keyframes nowPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--accent-soft-2);
+  }
+  50% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+.now-dot {
+  animation: nowPulse 2.4s ease-in-out infinite;
+}
