@@ -61,8 +61,29 @@ src/
 | `pnpm build`     | `tsc -b --noEmit && vite build` → `dist/`        |
 | `pnpm preview`   | Serve the production build on `:5173`            |
 | `pnpm typecheck` | `tsc -b --noEmit`                                |
+| `pnpm test:data` | Smoke-test the IDB + zustand + seed data layer   |
 | `make lighthouse`| Build + run Lighthouse CI locally (budgets in `lighthouserc.json`) |
 | `make clean`     | Wipe `dist/`, `node_modules/`, LHCI artifacts    |
+
+## Data layer (SAM-59)
+
+The calendar is local-only. Every event lives in IndexedDB; every selector that
+the views render against is a pure function over the in-memory zustand mirror.
+Other slices (design polish, NLP, views) can rely on this contract without
+re-implementing storage plumbing.
+
+| Module                              | Purpose                                                   |
+| ----------------------------------- | --------------------------------------------------------- |
+| `src/lib/storage.ts`                | IDB wrapper: `events` store + `by-start`/`by-end` indices, `meta` keyval store, `loadEventsInRange(startMs, endMs)` range query, `putEvents()` batch write. Schema v2 with auto-migration from v1. |
+| `src/lib/seed.ts`                   | `buildSeedEvents(anchor)` — deterministic week of ~18 demo events (standups, lunches, focus blocks, all-day birthday, multi-day conference). All events tagged `seeded: true`. |
+| `src/store/calendar.ts`             | Zustand store. `hydrate()` is the single boot call — it loads IDB into memory and, on first launch, runs the demo seed gated by the `seed.v1` meta key (never re-seeds once flipped). Also owns CRUD, drag snapshots, undo/redo, theme, palette. |
+| `src/store/selectors.ts`            | Pure selectors over the in-memory `events` map — `selectEventsInRange`, `selectEventsForDay`, `selectAllDayForDay`, `selectTimedForDay`, `sortByStart`. Zero IDB, zero zustand — safe to unit-test in plain Node. |
+| `tests/data.smoke.test.ts`          | `pnpm test:data` — fake-indexeddb-backed contract tests: auto-seed, idempotent re-hydrate, CRUD round-trip through IDB, undo/redo persistence, range-query correctness, seed determinism. |
+
+Anything else that wants to read events should call the selectors. Anything
+that writes events should call the store actions (`createEvent`, `updateEvent`,
+`upsertEvent`+`persistEvent` for drags, `deleteEvent`) — never `dbPut` directly,
+or you'll lose the undo stack.
 
 ## Screenshots
 
