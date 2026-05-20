@@ -1,0 +1,838 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Samsan Calendar — Shell · Week View</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;510;590;600&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+  <style>
+    :root {
+      color-scheme: dark;
+
+      /* canvas */
+      --bg: #08090a;
+      --bg-panel: #0f1011;
+      --bg-surface: #191a1b;
+      --bg-surface-2: #1f2022;
+
+      /* text */
+      --text: #f7f8f8;
+      --text-2: #d0d6e0;
+      --text-3: #8a8f98;
+      --text-4: #62666d;
+
+      /* accents */
+      --accent: #5e6ad2;
+      --accent-2: #7170ff;
+      --accent-3: #828fff;
+      --accent-soft: rgba(113, 112, 255, 0.14);
+      --accent-soft-2: rgba(113, 112, 255, 0.22);
+
+      /* event colors */
+      --evt-indigo: #7170ff;
+      --evt-indigo-soft: rgba(113, 112, 255, 0.18);
+      --evt-indigo-border: rgba(113, 112, 255, 0.40);
+      --evt-emerald: #34d399;
+      --evt-emerald-soft: rgba(52, 211, 153, 0.16);
+      --evt-emerald-border: rgba(52, 211, 153, 0.38);
+      --evt-amber: #f4b942;
+      --evt-amber-soft: rgba(244, 185, 66, 0.16);
+      --evt-amber-border: rgba(244, 185, 66, 0.36);
+      --evt-rose: #ec6a8c;
+      --evt-rose-soft: rgba(236, 106, 140, 0.16);
+      --evt-rose-border: rgba(236, 106, 140, 0.38);
+      --evt-sky: #5fb3f3;
+      --evt-sky-soft: rgba(95, 179, 243, 0.16);
+      --evt-sky-border: rgba(95, 179, 243, 0.38);
+      --evt-violet: #b69bff;
+      --evt-violet-soft: rgba(182, 155, 255, 0.16);
+      --evt-violet-border: rgba(182, 155, 255, 0.40);
+
+      /* borders */
+      --border-subtle: rgba(255, 255, 255, 0.05);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-strong: rgba(255, 255, 255, 0.12);
+
+      /* surfaces */
+      --hover: rgba(255, 255, 255, 0.04);
+      --press: rgba(255, 255, 255, 0.08);
+
+      --transition: 150ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      font-feature-settings: "cv01", "ss03";
+      font-size: 13.5px;
+      line-height: 1.45;
+      letter-spacing: -0.005em;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overflow: hidden;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      grid-template-rows: 48px 1fr;
+      height: 100vh;
+    }
+
+    /* ── Top bar ─────────────────────────────────────── */
+    .topbar {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 240px 1fr auto;
+      align-items: center;
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--bg);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 16px;
+      font-weight: 590;
+      letter-spacing: -0.01em;
+    }
+    .brand-mark {
+      width: 22px; height: 22px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12), 0 1px 0 rgba(0,0,0,0.3);
+      display: grid; place-items: center;
+      color: #fff;
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .brand-name { font-size: 13.5px; color: var(--text); }
+    .brand-name .dim { color: var(--text-3); font-weight: 400; }
+
+    .topbar-center {
+      display: flex; align-items: center; justify-content: center;
+      gap: 8px;
+    }
+    .palette-trigger {
+      display: flex; align-items: center; gap: 10px;
+      height: 28px;
+      padding: 0 8px 0 10px;
+      min-width: 360px;
+      max-width: 480px;
+      border-radius: 7px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border);
+      color: var(--text-3);
+      font-size: 12.5px;
+      letter-spacing: -0.005em;
+      cursor: text;
+    }
+    .palette-trigger .ico { color: var(--text-4); }
+    .palette-trigger .spacer { flex: 1; }
+    .palette-trigger .kbd-group { display: inline-flex; gap: 3px; }
+
+    .topbar-right { display: flex; align-items: center; gap: 6px; padding-right: 12px; }
+
+    /* ── Sidebar ─────────────────────────────────────── */
+    .sidebar {
+      grid-row: 2;
+      border-right: 1px solid var(--border-subtle);
+      background: var(--bg);
+      padding: 12px 8px;
+      display: flex; flex-direction: column; gap: 16px;
+      overflow: auto;
+    }
+    .side-section { display: flex; flex-direction: column; gap: 2px; }
+    .side-header {
+      padding: 6px 8px 4px;
+      font-size: 11px;
+      font-weight: 510;
+      letter-spacing: 0.02em;
+      color: var(--text-4);
+      text-transform: uppercase;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 8px;
+      height: 28px; padding: 0 8px;
+      border-radius: 5px;
+      color: var(--text-2);
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background var(--transition), color var(--transition);
+    }
+    .nav-item:hover { background: var(--hover); color: var(--text); }
+    .nav-item.active {
+      background: rgba(255,255,255,0.05);
+      color: var(--text);
+      box-shadow: inset 0 0 0 1px var(--border-subtle);
+    }
+    .nav-item .ico { color: var(--text-3); }
+    .nav-item.active .ico { color: var(--accent-2); }
+    .nav-item .badge {
+      margin-left: auto;
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      font-size: 10.5px;
+      color: var(--text-4);
+    }
+
+    .calendar-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      display: inline-block;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.16);
+    }
+
+    /* ── Main: view header + grid ──────────────────── */
+    .main {
+      grid-row: 2;
+      grid-column: 2;
+      display: grid;
+      grid-template-rows: 48px 1fr;
+      min-width: 0;
+      background: var(--bg);
+    }
+
+    .view-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .nav-arrows { display: inline-flex; gap: 2px; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 6px;
+      height: 28px; padding: 0 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+      color: var(--text-2);
+      font-size: 12.5px;
+      font-weight: 510;
+      letter-spacing: -0.005em;
+      cursor: pointer;
+      transition: background var(--transition), color var(--transition), border-color var(--transition);
+    }
+    .btn:hover { background: var(--hover); color: var(--text); border-color: var(--border-strong); }
+    .btn-icon { width: 28px; padding: 0; }
+    .btn-primary {
+      background: var(--accent);
+      border-color: transparent;
+      color: #fff;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12), 0 1px 0 rgba(0,0,0,0.25);
+    }
+    .btn-primary:hover { background: var(--accent-3); color: #fff; }
+    .btn-ghost { background: transparent; border-color: transparent; color: var(--text-3); }
+    .btn-ghost:hover { background: var(--hover); color: var(--text); }
+
+    .view-title {
+      font-size: 14.5px;
+      font-weight: 590;
+      letter-spacing: -0.01em;
+      color: var(--text);
+      margin-left: 4px;
+    }
+    .view-title .month { color: var(--text); }
+    .view-title .year { color: var(--text-3); font-weight: 400; margin-left: 6px; }
+
+    .seg {
+      display: inline-flex; align-items: center;
+      padding: 2px;
+      border-radius: 7px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border-subtle);
+      margin-left: auto;
+    }
+    .seg button {
+      height: 22px; padding: 0 10px;
+      border-radius: 5px;
+      background: transparent; border: 0;
+      color: var(--text-3);
+      font-size: 12px;
+      font-weight: 510;
+      letter-spacing: -0.005em;
+      cursor: pointer;
+      transition: background var(--transition), color var(--transition);
+    }
+    .seg button:hover { color: var(--text); }
+    .seg button[aria-pressed="true"] {
+      background: var(--bg-surface);
+      color: var(--text);
+      box-shadow: 0 1px 0 rgba(0,0,0,0.25), inset 0 0 0 1px var(--border-subtle);
+    }
+
+    /* ── Week grid ───────────────────────────────────── */
+    .week {
+      display: grid;
+      grid-template-columns: 56px repeat(7, 1fr);
+      grid-template-rows: 56px 1fr;
+      overflow: hidden;
+      position: relative;
+      min-height: 0;
+    }
+    .week-corner {
+      border-right: 1px solid var(--border-subtle);
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--bg);
+    }
+    .day-head {
+      display: flex; flex-direction: column; justify-content: center;
+      padding: 6px 12px;
+      border-right: 1px solid var(--border-subtle);
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--bg);
+    }
+    .day-head .dow {
+      font-size: 11px;
+      font-weight: 510;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-4);
+    }
+    .day-head .num {
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--text-2);
+      letter-spacing: -0.02em;
+      margin-top: 2px;
+    }
+    .day-head.today .dow { color: var(--accent-2); }
+    .day-head.today .num {
+      color: var(--text);
+      position: relative;
+      width: 32px;
+      height: 32px;
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 8px;
+      background: var(--accent-soft);
+      box-shadow: inset 0 0 0 1px var(--accent-soft-2);
+    }
+
+    .week-scroll {
+      grid-column: 1 / -1;
+      grid-row: 2;
+      overflow: auto;
+      position: relative;
+    }
+    .timegrid {
+      display: grid;
+      grid-template-columns: 56px repeat(7, 1fr);
+      position: relative;
+    }
+    .hours {
+      position: relative;
+    }
+    .hour-label {
+      height: 56px;
+      padding: 4px 8px 0 0;
+      text-align: right;
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      font-size: 10.5px;
+      color: var(--text-4);
+      border-right: 1px solid var(--border-subtle);
+      box-sizing: border-box;
+    }
+    .day-col {
+      position: relative;
+      border-right: 1px solid var(--border-subtle);
+    }
+    .day-col:last-child { border-right: 0; }
+    .hour-row {
+      height: 56px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .half-hour {
+      position: absolute; left: 0; right: 0;
+      border-bottom: 1px dashed rgba(255,255,255,0.025);
+    }
+
+    /* now-line */
+    .now-line {
+      position: absolute;
+      left: 56px; right: 0;
+      height: 0;
+      border-top: 1px solid var(--accent-2);
+      z-index: 6;
+      pointer-events: none;
+    }
+    .now-line::before {
+      content: "";
+      position: absolute;
+      left: -6px; top: -6px;
+      width: 11px; height: 11px;
+      border-radius: 50%;
+      background: var(--accent-2);
+      box-shadow: 0 0 0 4px var(--accent-soft);
+    }
+
+    /* event chips */
+    .event {
+      position: absolute;
+      left: 4px; right: 4px;
+      border-radius: 7px;
+      padding: 6px 8px;
+      font-size: 12px;
+      font-weight: 510;
+      letter-spacing: -0.005em;
+      cursor: pointer;
+      overflow: hidden;
+      box-shadow: 0 1px 0 rgba(0,0,0,0.2);
+      transition: transform var(--transition), box-shadow var(--transition);
+    }
+    .event:hover { transform: translateY(-0.5px); }
+    .event .e-time {
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      font-size: 10.5px;
+      font-weight: 500;
+      opacity: 0.78;
+      letter-spacing: 0;
+      display: block;
+      margin-top: 2px;
+    }
+    .event.indigo {
+      background: var(--evt-indigo-soft);
+      color: #e9e8ff;
+      box-shadow: inset 2px 0 0 var(--evt-indigo), 0 1px 0 rgba(0,0,0,0.25);
+    }
+    .event.emerald {
+      background: var(--evt-emerald-soft);
+      color: #d6f7e7;
+      box-shadow: inset 2px 0 0 var(--evt-emerald), 0 1px 0 rgba(0,0,0,0.25);
+    }
+    .event.amber {
+      background: var(--evt-amber-soft);
+      color: #fde7c2;
+      box-shadow: inset 2px 0 0 var(--evt-amber), 0 1px 0 rgba(0,0,0,0.25);
+    }
+    .event.rose {
+      background: var(--evt-rose-soft);
+      color: #fbd9e3;
+      box-shadow: inset 2px 0 0 var(--evt-rose), 0 1px 0 rgba(0,0,0,0.25);
+    }
+    .event.sky {
+      background: var(--evt-sky-soft);
+      color: #d3ecfb;
+      box-shadow: inset 2px 0 0 var(--evt-sky), 0 1px 0 rgba(0,0,0,0.25);
+    }
+    .event.violet {
+      background: var(--evt-violet-soft);
+      color: #ebe1ff;
+      box-shadow: inset 2px 0 0 var(--evt-violet), 0 1px 0 rgba(0,0,0,0.25);
+    }
+    .event.selected {
+      outline: 1px solid var(--accent-2);
+      outline-offset: -1px;
+      box-shadow: inset 2px 0 0 currentColor, 0 0 0 4px var(--accent-soft);
+    }
+
+    /* keyboard hint chips */
+    .kbd {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 18px; height: 18px;
+      padding: 0 5px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-3);
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      font-size: 10.5px;
+      line-height: 1;
+    }
+
+    /* phosphor-ish line icons (inline svg) */
+    svg.ic { width: 14px; height: 14px; flex: none; display: inline-block; }
+    svg.ic-sm { width: 12px; height: 12px; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- ── topbar ── -->
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">S</span>
+        <span class="brand-name">Samsan <span class="dim">Calendar</span></span>
+      </div>
+      <div class="topbar-center">
+        <div class="palette-trigger" role="button" tabindex="0">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <span>Type "lunch with Aman next Thu 12:30"</span>
+          <span class="spacer"></span>
+          <span class="kbd-group">
+            <span class="kbd">⌘</span>
+            <span class="kbd">K</span>
+          </span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button class="btn btn-icon btn-ghost" title="Theme">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+        </button>
+        <button class="btn btn-icon btn-ghost" title="Settings">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- ── sidebar ── -->
+    <aside class="sidebar">
+      <div class="side-section">
+        <div class="nav-item active">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          Calendar
+          <span class="badge">12</span>
+        </div>
+        <div class="nav-item">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          Up next
+          <span class="badge">3</span>
+        </div>
+        <div class="nav-item">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14M5 12h14M5 17h10"/></svg>
+          All events
+        </div>
+      </div>
+
+      <div class="side-section">
+        <div class="side-header">Calendars</div>
+        <div class="nav-item">
+          <span class="calendar-dot" style="background: var(--evt-indigo);"></span>
+          Personal
+        </div>
+        <div class="nav-item">
+          <span class="calendar-dot" style="background: var(--evt-emerald);"></span>
+          Work
+        </div>
+        <div class="nav-item">
+          <span class="calendar-dot" style="background: var(--evt-amber);"></span>
+          Focus
+        </div>
+        <div class="nav-item">
+          <span class="calendar-dot" style="background: var(--evt-rose);"></span>
+          Social
+        </div>
+        <div class="nav-item">
+          <span class="calendar-dot" style="background: var(--evt-sky);"></span>
+          Travel
+        </div>
+      </div>
+
+      <div class="side-section">
+        <div class="side-header">Shortcuts</div>
+        <div class="nav-item" style="cursor:default">
+          <span style="color: var(--text-3); font-size: 12px;">New event</span>
+          <span class="badge"><span class="kbd">N</span></span>
+        </div>
+        <div class="nav-item" style="cursor:default">
+          <span style="color: var(--text-3); font-size: 12px;">Today</span>
+          <span class="badge"><span class="kbd">T</span></span>
+        </div>
+        <div class="nav-item" style="cursor:default">
+          <span style="color: var(--text-3); font-size: 12px;">Command</span>
+          <span class="badge"><span class="kbd">⌘K</span></span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ── main ── -->
+    <section class="main">
+      <div class="view-header">
+        <div class="nav-arrows">
+          <button class="btn btn-icon" title="Previous">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <button class="btn btn-icon" title="Next">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+        </div>
+        <button class="btn">Today</button>
+        <div class="view-title">
+          <span class="month">May</span>
+          <span class="year">2026</span>
+        </div>
+
+        <div class="seg" role="tablist" style="margin-left:auto">
+          <button>Day</button>
+          <button aria-pressed="true">Week</button>
+          <button>Month</button>
+        </div>
+
+        <button class="btn btn-primary" style="margin-left:8px">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          New event
+        </button>
+      </div>
+
+      <div class="week">
+        <div class="week-corner"></div>
+        <div class="day-head"><span class="dow">Mon</span><span class="num">18</span></div>
+        <div class="day-head"><span class="dow">Tue</span><span class="num">19</span></div>
+        <div class="day-head today"><span class="dow">Wed</span><span class="num">20</span></div>
+        <div class="day-head"><span class="dow">Thu</span><span class="num">21</span></div>
+        <div class="day-head"><span class="dow">Fri</span><span class="num">22</span></div>
+        <div class="day-head"><span class="dow">Sat</span><span class="num">23</span></div>
+        <div class="day-head"><span class="dow">Sun</span><span class="num">24</span></div>
+
+        <div class="week-scroll" id="weekScroll">
+          <div class="timegrid" style="height: 1232px"><!-- 22 hours * 56 -->
+            <!-- hours column -->
+            <div class="hours">
+              <div class="hour-label">7 AM</div>
+              <div class="hour-label">8 AM</div>
+              <div class="hour-label">9 AM</div>
+              <div class="hour-label">10 AM</div>
+              <div class="hour-label">11 AM</div>
+              <div class="hour-label">12 PM</div>
+              <div class="hour-label">1 PM</div>
+              <div class="hour-label">2 PM</div>
+              <div class="hour-label">3 PM</div>
+              <div class="hour-label">4 PM</div>
+              <div class="hour-label">5 PM</div>
+              <div class="hour-label">6 PM</div>
+              <div class="hour-label">7 PM</div>
+              <div class="hour-label">8 PM</div>
+              <div class="hour-label">9 PM</div>
+              <div class="hour-label">10 PM</div>
+              <div class="hour-label">11 PM</div>
+              <div class="hour-label">12 AM</div>
+              <div class="hour-label">1 AM</div>
+              <div class="hour-label">2 AM</div>
+              <div class="hour-label">3 AM</div>
+              <div class="hour-label">4 AM</div>
+            </div>
+
+            <!-- Mon -->
+            <div class="day-col">
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div>
+
+              <!-- 9:00–10:00 standup -->
+              <div class="event emerald" style="top: 112px; height: 50px;">
+                Team standup
+                <span class="e-time">9:00 – 10:00</span>
+              </div>
+              <!-- 14:00–15:30 1:1 -->
+              <div class="event indigo" style="top: 392px; height: 78px;">
+                1:1 with Lina
+                <span class="e-time">2:00 – 3:30</span>
+              </div>
+            </div>
+
+            <!-- Tue -->
+            <div class="day-col">
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div>
+
+              <!-- 8:30–9:00 commute -->
+              <div class="event sky" style="top: 84px; height: 22px;">
+                Commute
+                <span class="e-time" style="display:inline; margin-left:6px; margin-top:0;">8:30 – 9:00</span>
+              </div>
+              <!-- 10:00–11:30 deep work -->
+              <div class="event amber" style="top: 168px; height: 78px;">
+                Deep work — calendar engine
+                <span class="e-time">10:00 – 11:30</span>
+              </div>
+              <!-- 13:00–14:00 lunch -->
+              <div class="event rose" style="top: 336px; height: 50px;">
+                Lunch with Maya
+                <span class="e-time">1:00 – 2:00</span>
+              </div>
+              <!-- 16:00–17:00 review -->
+              <div class="event indigo" style="top: 504px; height: 50px;">
+                Design review
+                <span class="e-time">4:00 – 5:00</span>
+              </div>
+            </div>
+
+            <!-- Wed (today) -->
+            <div class="day-col">
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div>
+
+              <!-- 9:30–10:30 sync -->
+              <div class="event emerald" style="top: 140px; height: 50px;">
+                Eng sync
+                <span class="e-time">9:30 – 10:30</span>
+              </div>
+              <!-- 11:00–12:00 -->
+              <div class="event violet" style="top: 224px; height: 50px;">
+                Roadmap planning
+                <span class="e-time">11:00 – 12:00</span>
+              </div>
+              <!-- 12:30 lunch w/ Aman (selected, captured from palette demo) -->
+              <div class="event rose selected" style="top: 308px; height: 50px;">
+                Lunch with Aman
+                <span class="e-time">12:30 – 1:30</span>
+              </div>
+              <!-- 14:00–15:00 -->
+              <div class="event indigo" style="top: 392px; height: 50px;">
+                Design crit
+                <span class="e-time">2:00 – 3:00</span>
+              </div>
+              <!-- 15:30–17:00 long block -->
+              <div class="event amber" style="top: 476px; height: 78px;">
+                Deep work
+                <span class="e-time">3:30 – 5:00</span>
+              </div>
+            </div>
+
+            <!-- Thu -->
+            <div class="day-col">
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div>
+
+              <!-- 8:00–9:00 yoga -->
+              <div class="event emerald" style="top: 56px; height: 50px;">
+                Yoga
+                <span class="e-time">8:00 – 9:00</span>
+              </div>
+              <!-- 10:00–11:00 -->
+              <div class="event sky" style="top: 168px; height: 50px;">
+                Stand-up
+                <span class="e-time">10:00 – 11:00</span>
+              </div>
+              <!-- 12:00–13:00 -->
+              <div class="event rose" style="top: 280px; height: 50px;">
+                Coffee with Priya
+                <span class="e-time">12:00 – 1:00</span>
+              </div>
+              <!-- 15:00 interview -->
+              <div class="event violet" style="top: 448px; height: 50px;">
+                Interview — frontend
+                <span class="e-time">3:00 – 4:00</span>
+              </div>
+              <!-- 17:00–18:30 gym -->
+              <div class="event amber" style="top: 560px; height: 78px;">
+                Gym
+                <span class="e-time">5:00 – 6:30</span>
+              </div>
+            </div>
+
+            <!-- Fri -->
+            <div class="day-col">
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div>
+
+              <!-- 9:00–11:00 demo prep -->
+              <div class="event amber" style="top: 112px; height: 106px;">
+                Demo prep
+                <span class="e-time">9:00 – 11:00</span>
+              </div>
+              <!-- 11:30–12:30 customer -->
+              <div class="event indigo" style="top: 252px; height: 50px;">
+                Customer call — Acme
+                <span class="e-time">11:30 – 12:30</span>
+              </div>
+              <!-- 13:00 demo -->
+              <div class="event emerald" style="top: 336px; height: 78px;">
+                Friday demo
+                <span class="e-time">1:00 – 2:30</span>
+              </div>
+              <!-- 17:00 happy hour -->
+              <div class="event rose" style="top: 560px; height: 78px;">
+                Happy hour @ Optimism
+                <span class="e-time">5:00 – 6:30</span>
+              </div>
+            </div>
+
+            <!-- Sat -->
+            <div class="day-col">
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div>
+
+              <!-- 10:00–12:00 farmers' market -->
+              <div class="event sky" style="top: 168px; height: 106px;">
+                Farmers' market &amp; brunch
+                <span class="e-time">10:00 – 12:00</span>
+              </div>
+              <!-- 19:00 dinner -->
+              <div class="event rose" style="top: 672px; height: 106px;">
+                Dinner — Sarah &amp; Tom
+                <span class="e-time">7:00 – 9:00</span>
+              </div>
+            </div>
+
+            <!-- Sun -->
+            <div class="day-col">
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div><div class="hour-row"></div><div class="hour-row"></div>
+              <div class="hour-row"></div>
+
+              <!-- 11:00 brunch w/ family -->
+              <div class="event amber" style="top: 224px; height: 78px;">
+                Brunch — family
+                <span class="e-time">11:00 – 12:30</span>
+              </div>
+              <!-- 16:00 weekly review -->
+              <div class="event violet" style="top: 504px; height: 50px;">
+                Weekly review
+                <span class="e-time">4:00 – 5:00</span>
+              </div>
+            </div>
+
+            <!-- now line — Wed (today), ~10:42 AM. Hours start at 7AM. 3h42m * 56/h = 207px from top.
+                 Span the line across all day cols. We render it absolutely positioned across timegrid. -->
+            <div class="now-line" style="top: 207px; left: 56px;"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+    // Center scroll on now-line (mocked time ~10:42)
+    const ws = document.getElementById('weekScroll');
+    if (ws) ws.scrollTop = Math.max(0, 207 - 220);
+  </script>
+</body>
+</html>
