@@ -26,7 +26,7 @@ const GROUPS: Group[] = [
     title: 'Global',
     rows: [
       { keys: ['⌘', 'K'], label: 'Open command palette' },
-      { keys: ['/'], label: 'Open command palette' },
+      { keys: ['/'], label: 'Quick open (palette)' },
       { keys: ['?'], label: 'Show this sheet' },
       { keys: ['Esc'], label: 'Close palette / sheet / editor' },
     ],
@@ -39,8 +39,8 @@ const GROUPS: Group[] = [
       { keys: ['K'], label: 'Backward (1 day / 1 week)' },
       { keys: ['→'], label: 'Forward 1 day' },
       { keys: ['←'], label: 'Backward 1 day' },
-      { keys: ['↓'], label: 'Forward (week in month view, day elsewhere)' },
-      { keys: ['↑'], label: 'Backward (week in month view, day elsewhere)' },
+      { keys: ['↓'], label: 'Forward (week in month, day elsewhere)' },
+      { keys: ['↑'], label: 'Backward (week in month, day elsewhere)' },
     ],
   },
   {
@@ -56,6 +56,7 @@ const GROUPS: Group[] = [
     title: 'Events',
     rows: [
       { keys: ['N'], label: 'New event at cursor' },
+      { keys: ['↵'], label: 'Open / edit focused event' },
       { keys: ['⌫'], label: 'Delete selected event' },
     ],
   },
@@ -64,7 +65,7 @@ const GROUPS: Group[] = [
     rows: [
       { keys: ['⌘', 'Z'], label: 'Undo' },
       { keys: ['⇧', '⌘', 'Z'], label: 'Redo' },
-      { keys: ['⌘', 'Y'], label: 'Redo (Windows convention)' },
+      { keys: ['⌘', 'Y'], label: 'Redo (Windows)' },
     ],
   },
   {

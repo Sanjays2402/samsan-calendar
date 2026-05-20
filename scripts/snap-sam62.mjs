@@ -13,10 +13,10 @@ await page.keyboard.press('Meta+k');
 await page.waitForTimeout(400);
 await page.screenshot({ path: `${OUT}/02-palette-empty.png`, fullPage: false });
 
-// 3. Type a search → "team"
-await page.keyboard.type('team');
+// 3. Type a search → "stand" (matches the Standup seed event)
+await page.keyboard.type('stand');
 await page.waitForTimeout(300);
-await page.screenshot({ path: `${OUT}/03-palette-fuzzy-team.png`, fullPage: false });
+await page.screenshot({ path: `${OUT}/03-palette-fuzzy-stand.png`, fullPage: false });
 
 // 4. Clear + try "tomorrow" — NL date
 await page.keyboard.press('Escape');

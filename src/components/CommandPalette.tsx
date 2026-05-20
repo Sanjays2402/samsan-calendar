@@ -471,7 +471,11 @@ export function CommandPalette() {
   return (
     <div
       className="fixed inset-0 z-50 grid place-items-start justify-center pt-[12vh] fade-in"
-      style={{ background: 'color-mix(in oklab, var(--bg) 70%, transparent)' }}
+      style={{
+        background: 'color-mix(in oklab, var(--bg) 55%, transparent)',
+        backdropFilter: 'blur(8px) saturate(140%)',
+        WebkitBackdropFilter: 'blur(8px) saturate(140%)',
+      }}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) close();
       }}
@@ -524,6 +528,8 @@ export function CommandPalette() {
           ref={listRef}
           className="max-h-[52vh] overflow-auto"
           style={{ padding: 4 }}
+          role="listbox"
+          aria-label="Command results"
         >
           {ranked.length === 0 && (
             <div
@@ -608,9 +614,17 @@ function Row({ idx, entry, active, onHover, onActivate }: RowProps) {
     padding: '7px 10px',
     fontSize: 13,
     borderRadius: 6,
-    background: active ? 'var(--hover)' : 'transparent',
+    // Active row: a denser accent fill + 3px inset accent bar — strong enough
+    // to read as "selected" from across the dialog, not a hover artifact. Tuned
+    // directly here (not via --accent-soft) so the palette's selection state
+    // is louder than the calendar's "selected event" tint.
+    background: active
+      ? 'color-mix(in oklab, var(--accent-2) 16%, transparent)'
+      : 'transparent',
+    boxShadow: active ? 'inset 3px 0 0 var(--accent-2)' : 'none',
     color: 'var(--text)',
-    transition: 'background var(--transition)',
+    transition:
+      'background var(--transition), box-shadow var(--transition), transform var(--transition)',
   } as const;
 
   if (item.kind === 'action' || item.kind === 'jump') {
@@ -619,6 +633,8 @@ function Row({ idx, entry, active, onHover, onActivate }: RowProps) {
       <button
         data-idx={idx}
         type="button"
+        role="option"
+        aria-selected={active}
         onMouseEnter={() => onHover(idx)}
         onClick={() => onActivate(item)}
         className="flex items-center gap-2.5 w-full text-left"
@@ -627,9 +643,12 @@ function Row({ idx, entry, active, onHover, onActivate }: RowProps) {
         <span
           className="grid place-items-center w-6 h-6 rounded-md shrink-0"
           style={{
-            background: 'var(--bg-surface)',
-            color: 'var(--text-2)',
-            border: '1px solid var(--border-subtle)',
+            background: active ? 'var(--accent-soft-2)' : 'var(--bg-surface)',
+            color: active ? 'var(--accent-2)' : 'var(--text-2)',
+            border: active
+              ? '1px solid color-mix(in oklab, var(--accent-2) 38%, transparent)'
+              : '1px solid var(--border-subtle)',
+            transition: 'background var(--transition), color var(--transition), border-color var(--transition)',
           }}
         >
           <Icon size={13} weight="duotone" />
@@ -657,6 +676,8 @@ function Row({ idx, entry, active, onHover, onActivate }: RowProps) {
     <button
       data-idx={idx}
       type="button"
+      role="option"
+      aria-selected={active}
       onMouseEnter={() => onHover(idx)}
       onClick={() => onActivate(item)}
       className="flex items-center gap-2.5 w-full text-left"
