@@ -10,7 +10,8 @@
     "typecheck": "tsc -b --noEmit",
     "test:data": "node --import tsx --test tests/data.smoke.test.ts",
     "test:palette": "node --import tsx --test tests/palette.test.ts",
-    "test:agenda": "node --import tsx --test tests/agenda.test.ts"
+    "test:agenda": "node --import tsx --test tests/agenda.test.ts",
+    "test:e2e": "node --import tsx --test tests/e2e.smoke.test.ts"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.7",

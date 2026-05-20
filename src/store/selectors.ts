@@ -4,9 +4,15 @@
  * Kept deliberately free of zustand and IDB so they can be unit-tested
  * without jsdom or a DB shim, and so they can be reused as plain functions
  * by the future server-side ICS export.
+ *
+ * SAM-70 — these selectors now transparently expand recurring events via
+ * `src/lib/recur.ts`. Renderers don't need to know the difference between
+ * a one-off event and an exploded occurrence: they get a flat list keyed by
+ * `id` (which is either the master id or `<masterId>__<startMs>`).
  */
 import type { CalEvent } from '../types';
 import { sameDay, startOfDayMs, endOfDayMs } from '../lib/date';
+import { expandAllInRange } from '../lib/recur';
 
 export type EventMap = Readonly<Record<string, CalEvent>>;
 
@@ -26,10 +32,11 @@ export function selectEventsInRange(
   endMs: number,
 ): CalEvent[] {
   if (endMs <= startMs) return [];
-  const out: CalEvent[] = [];
-  for (const ev of Object.values(events)) {
-    if (ev.start < endMs && ev.end > startMs) out.push(ev);
-  }
+  const out = expandAllInRange(
+    events as Record<string, CalEvent>,
+    startMs,
+    endMs,
+  );
   out.sort(sortByStart);
   return out;
 }

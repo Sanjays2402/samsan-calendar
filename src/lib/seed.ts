@@ -43,7 +43,9 @@ export function buildSeedEvents(anchor: number = Date.now()): CalEvent[] {
     startMinute: number,
     durationMin: number,
     color: EventColor,
-    extras: Partial<Pick<CalEvent, 'location' | 'notes' | 'allDay'>> = {},
+    extras: Partial<
+      Pick<CalEvent, 'location' | 'notes' | 'allDay' | 'rrule'>
+    > = {},
   ): CalEvent {
     const start = at(dayOffset, startHour, startMinute);
     const end = addMinutes(new Date(start), durationMin).getTime();

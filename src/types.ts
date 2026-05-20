@@ -28,6 +28,23 @@ export type CalEvent = {
   notes?: string;
   /** Whether the event was system-seeded. Helps the seeder be idempotent. */
   seeded?: boolean;
+  /**
+   * RFC 5545 RRULE string (without the `RRULE:` prefix), e.g.
+   *   "FREQ=WEEKLY;BYDAY=MO,WE,FR"
+   *   "FREQ=DAILY;COUNT=5"
+   *
+   * Only the *master* event in IDB carries this field. The recurrence layer
+   * expands it into virtual occurrences on read (`src/lib/recur.ts`).
+   * Per-occurrence overrides (EXDATE / exceptions) are intentionally out of
+   * scope for v1 — editing a recurring event edits the whole series.
+   */
+  rrule?: string;
+  /**
+   * Only present on *expanded* virtual occurrences — never persisted.
+   * Points back to the master event's id so renderers and mutation handlers
+   * can route edits to the series.
+   */
+  seriesId?: string;
   /** ms-since-epoch of last update — for conflict resolution */
   updatedAt: number;
 };

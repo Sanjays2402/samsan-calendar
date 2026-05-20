@@ -2,7 +2,7 @@ import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { CalEvent } from '../types';
 
 const DB_NAME = 'samsan-calendar';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const EVENTS = 'events';
 const META = 'meta';
 
@@ -39,6 +39,13 @@ function db(): Promise<IDBPDatabase<CalDB>> {
           if (!events.indexNames.contains('by-end')) {
             events.createIndex('by-end', 'end');
           }
+        }
+        if (oldVersion < 3) {
+          // v3 (SAM-70) — adds the optional `rrule` field on CalEvent.
+          // The shape is additive (optional), so existing records keep
+          // working as one-off events with no migration data step. We still
+          // bump the version explicitly so future agents can see the
+          // recurrence layer is "live" from v3 onward.
         }
       },
     });

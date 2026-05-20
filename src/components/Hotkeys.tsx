@@ -3,10 +3,12 @@ import { useStore } from '../store/calendar';
 import {
   addDaysMs,
   addMinutesMs,
+  fmt,
   snapToMinutes,
   startOfDayMs,
   todayMs,
 } from '../lib/date';
+import { downloadIcs } from '../lib/ics';
 import { uid } from '../lib/uid';
 import type { ViewMode } from '../types';
 
@@ -30,6 +32,7 @@ function stepDays(view: ViewMode): number {
 export function Hotkeys() {
   const view = useStore((s) => s.view);
   const cursor = useStore((s) => s.cursor);
+  const events = useStore((s) => s.events);
   const setView = useStore((s) => s.setView);
   const setCursor = useStore((s) => s.setCursor);
   const goToday = useStore((s) => s.goToday);
@@ -42,6 +45,11 @@ export function Hotkeys() {
   const upsertEvent = useStore((s) => s.upsertEvent);
   const selectedEventId = useStore((s) => s.selectedEventId);
   const deleteEvent = useStore((s) => s.deleteEvent);
+  const undo = useStore((s) => s.undo);
+  const redo = useStore((s) => s.redo);
+  const helpOpen = useStore((s) => s.helpOpen);
+  const toggleHelp = useStore((s) => s.toggleHelp);
+  const closeHelp = useStore((s) => s.closeHelp);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -54,7 +62,36 @@ export function Hotkeys() {
         return;
       }
 
+      // Cmd/Ctrl + Z → undo (Cmd+Shift+Z → redo). Also Cmd+Y → redo.
+      if (mod && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        if (e.shiftKey) {
+          void redo();
+        } else {
+          void undo();
+        }
+        return;
+      }
+      if (mod && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault();
+        void redo();
+        return;
+      }
+
+      // Cmd/Ctrl + E → export .ics
+      if (mod && (e.key === 'e' || e.key === 'E')) {
+        e.preventDefault();
+        const all = Object.values(events).sort((a, b) => a.start - b.start);
+        if (all.length === 0) return;
+        downloadIcs(all, `samsan-calendar-${fmt(Date.now(), 'yyyy-MM-dd')}.ics`);
+        return;
+      }
+
       if (e.key === 'Escape') {
+        if (helpOpen) {
+          closeHelp();
+          return;
+        }
         if (paletteOpen) {
           closePalette();
           return;
@@ -66,6 +103,14 @@ export function Hotkeys() {
       }
 
       if (isTypingTarget(e.target)) return;
+
+      // `?` (Shift+/) → show shortcut cheatsheet.
+      // Allowed even when palette is closed; we ignore it while typing above.
+      if (e.key === '?') {
+        e.preventDefault();
+        toggleHelp();
+        return;
+      }
 
       const step = stepDays(view);
 
@@ -171,9 +216,11 @@ export function Hotkeys() {
   }, [
     view,
     cursor,
+    events,
     paletteOpen,
     draftId,
     selectedEventId,
+    helpOpen,
     setView,
     setCursor,
     goToday,
@@ -183,6 +230,10 @@ export function Hotkeys() {
     setDraft,
     upsertEvent,
     deleteEvent,
+    undo,
+    redo,
+    toggleHelp,
+    closeHelp,
   ]);
 
   return null;

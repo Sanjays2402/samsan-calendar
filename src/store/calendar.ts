@@ -10,6 +10,7 @@ import {
   setMeta,
 } from '../lib/storage';
 import { buildSeedEvents } from '../lib/seed';
+import { resolveSeriesId } from '../lib/recur';
 
 /**
  * Meta key gating the first-launch demo seed.
@@ -19,6 +20,20 @@ import { buildSeedEvents } from '../lib/seed';
  * UI will expose later; it wipes events + clears this gate.
  */
 const SEED_META_KEY = 'seed.v1';
+
+/**
+ * In-flight hydrate promise.
+ *
+ * React StrictMode mounts every component twice in dev, so the App-level
+ * `useEffect(hydrate)` fires twice in quick succession. Without a guard,
+ * both invocations race past the `persisted.length === 0` check before
+ * either has written, and the seed batch lands twice (visible as
+ * duplicated event tiles in week/day views).
+ *
+ * We collapse concurrent calls into the same promise; whichever caller
+ * lands first does the work, the rest await its result.
+ */
+let hydratePromise: Promise<void> | null = null;
 
 /** A single reversible mutation. */
 type UndoEntry =
@@ -47,6 +62,7 @@ type State = {
   selectedEventId: string | null;
   draftId: string | null; // event being edited (might be new + unsaved)
   paletteOpen: boolean;
+  helpOpen: boolean;
   theme: Theme;
   hydrated: boolean;
   undoStack: UndoEntry[];
@@ -85,6 +101,9 @@ type Actions = {
   openPalette: () => void;
   closePalette: () => void;
   togglePalette: () => void;
+  openHelp: () => void;
+  closeHelp: () => void;
+  toggleHelp: () => void;
   setTheme: (t: Theme) => void;
   setToast: (t: Toast) => void;
   /** Seed events if empty. Returns count inserted. */
@@ -110,6 +129,7 @@ export const useStore = create<State & Actions>((set, get) => ({
   selectedEventId: null,
   draftId: null,
   paletteOpen: false,
+  helpOpen: false,
   theme: (typeof window !== 'undefined'
     ? (localStorage.getItem('samsan.theme') as Theme | null)
     : null) || 'system',
@@ -152,8 +172,19 @@ export const useStore = create<State & Actions>((set, get) => ({
   setView: (view) => set({ view }),
   setCursor: (cursor) => set({ cursor }),
   goToday: () => set({ cursor: todayMs() }),
-  selectEvent: (id) => set({ selectedEventId: id, draftId: id }),
-  setDraft: (id) => set({ draftId: id, selectedEventId: id }),
+  // Virtual occurrence ids (`<masterId>__<ms>`) must collapse to the master
+  // before they touch in-memory state. The selection/draft pointers always
+  // address the series, never an exploded instance.
+  selectEvent: (id) =>
+    set({
+      selectedEventId: id === null ? null : resolveSeriesId(id),
+      draftId: id === null ? null : resolveSeriesId(id),
+    }),
+  setDraft: (id) =>
+    set({
+      draftId: id === null ? null : resolveSeriesId(id),
+      selectedEventId: id === null ? null : resolveSeriesId(id),
+    }),
 
   createEvent: async (ev) => {
     const next = { ...ev, updatedAt: Date.now() };
@@ -170,8 +201,16 @@ export const useStore = create<State & Actions>((set, get) => ({
   },
 
   updateEvent: async (nextEv, opts) => {
-    const prev = get().events[nextEv.id];
-    const stamped = { ...nextEv, updatedAt: Date.now() };
+    // Collapse the virtual id (if any) before doing anything — every mutator
+    // path below addresses the master event in IDB + in-memory map.
+    const seriesId = resolveSeriesId(nextEv.id);
+    const stamped: CalEvent = {
+      ...nextEv,
+      id: seriesId,
+      updatedAt: Date.now(),
+    };
+    delete stamped.seriesId;
+    const prev = get().events[seriesId];
     set((s) => {
       const newUndo =
         opts?.history === false || !prev
@@ -192,24 +231,38 @@ export const useStore = create<State & Actions>((set, get) => ({
   },
 
   patchEventLocal: (id, patch) => {
-    const existing = get().events[id];
+    const seriesId = resolveSeriesId(id);
+    const existing = get().events[seriesId];
     if (!existing) return;
     // First in-flight change for this drag — snapshot the original shape.
-    if (!dragSnapshots.has(id)) {
-      dragSnapshots.set(id, existing);
+    if (!dragSnapshots.has(seriesId)) {
+      dragSnapshots.set(seriesId, existing);
     }
+    // Patches against a virtual occurrence id apply to the *whole series* in
+    // v1 (no per-occurrence overrides). A drag of Wednesday's standup moves
+    // every standup — that's the documented contract in `src/lib/recur.ts`.
+    // If the patch carries start/end deltas we still need to apply them as
+    // absolute values; callers do that math against the *occurrence* date,
+    // so for now we trust the caller. SAM-72 will revisit when we add
+    // per-instance overrides.
     const next: CalEvent = { ...existing, ...patch, updatedAt: Date.now() };
-    set((s) => ({ events: { ...s.events, [id]: next } }));
+    set((s) => ({ events: { ...s.events, [seriesId]: next } }));
   },
 
   upsertEvent: async (ev) => {
-    const stamped = { ...ev, updatedAt: Date.now() };
-    const prev = get().events[ev.id] ?? null;
+    const seriesId = resolveSeriesId(ev.id);
+    const stamped: CalEvent = {
+      ...ev,
+      id: seriesId,
+      updatedAt: Date.now(),
+    };
+    delete stamped.seriesId;
+    const prev = get().events[seriesId] ?? null;
     // Track the pre-drag shape so persistEvent() can record the right undo entry.
     // For brand-new events (prev === null) we record `null`, meaning "the
     // commit is a creation".
-    if (!dragSnapshots.has(ev.id)) {
-      dragSnapshots.set(ev.id, prev);
+    if (!dragSnapshots.has(seriesId)) {
+      dragSnapshots.set(seriesId, prev);
     }
     set((s) => ({
       events: { ...s.events, [stamped.id]: stamped },
@@ -218,15 +271,16 @@ export const useStore = create<State & Actions>((set, get) => ({
   },
 
   persistEvent: async (id) => {
-    const ev = get().events[id];
+    const seriesId = resolveSeriesId(id);
+    const ev = get().events[seriesId];
     if (!ev) {
-      dragSnapshots.delete(id);
+      dragSnapshots.delete(seriesId);
       return;
     }
-    const snapshot = dragSnapshots.has(id)
-      ? dragSnapshots.get(id)!
+    const snapshot = dragSnapshots.has(seriesId)
+      ? dragSnapshots.get(seriesId)!
       : null;
-    dragSnapshots.delete(id);
+    dragSnapshots.delete(seriesId);
     // Skip the undo entry if the event didn't actually change.
     const unchanged =
       snapshot &&
@@ -251,7 +305,8 @@ export const useStore = create<State & Actions>((set, get) => ({
   },
 
   commitEvent: async (id, prev, label) => {
-    const ev = get().events[id];
+    const seriesId = resolveSeriesId(id);
+    const ev = get().events[seriesId];
     if (!ev) return;
     set((s) => ({
       undoStack: prev
@@ -263,15 +318,17 @@ export const useStore = create<State & Actions>((set, get) => ({
   },
 
   deleteEvent: async (id) => {
-    const ev = get().events[id];
+    const seriesId = resolveSeriesId(id);
+    const ev = get().events[seriesId];
     if (!ev) return;
     set((s) => {
       const nxt = { ...s.events };
-      delete nxt[id];
+      delete nxt[seriesId];
       return {
         events: nxt,
-        selectedEventId: s.selectedEventId === id ? null : s.selectedEventId,
-        draftId: s.draftId === id ? null : s.draftId,
+        selectedEventId:
+          s.selectedEventId === seriesId ? null : s.selectedEventId,
+        draftId: s.draftId === seriesId ? null : s.draftId,
         undoStack: pushUndo(s.undoStack, {
           kind: 'delete',
           events: [ev],
@@ -280,19 +337,25 @@ export const useStore = create<State & Actions>((set, get) => ({
         redoStack: [],
         toast: {
           id: uidShort(),
-          label: `Deleted "${ev.title || 'Untitled'}"`,
+          label: ev.rrule
+            ? `Deleted series "${ev.title || 'Untitled'}"`
+            : `Deleted "${ev.title || 'Untitled'}"`,
           undoId: 'last',
         },
       };
     });
-    await dbDelete(id);
+    await dbDelete(seriesId);
   },
 
   deleteMany: async (ids) => {
     const removed: CalEvent[] = [];
+    const seriesIds = ids.map((id) => resolveSeriesId(id));
     set((s) => {
       const nxt = { ...s.events };
-      for (const id of ids) {
+      const seen = new Set<string>();
+      for (const id of seriesIds) {
+        if (seen.has(id)) continue;
+        seen.add(id);
         const ev = s.events[id];
         if (ev) {
           removed.push(ev);
@@ -302,10 +365,10 @@ export const useStore = create<State & Actions>((set, get) => ({
       if (removed.length === 0) return {};
       return {
         events: nxt,
-        selectedEventId: ids.includes(s.selectedEventId ?? '')
+        selectedEventId: seriesIds.includes(s.selectedEventId ?? '')
           ? null
           : s.selectedEventId,
-        draftId: ids.includes(s.draftId ?? '') ? null : s.draftId,
+        draftId: seriesIds.includes(s.draftId ?? '') ? null : s.draftId,
         undoStack: pushUndo(s.undoStack, {
           kind: 'delete',
           events: removed,
@@ -406,9 +469,15 @@ export const useStore = create<State & Actions>((set, get) => ({
     }
   },
 
-  openPalette: () => set({ paletteOpen: true }),
+  openPalette: () => set({ paletteOpen: true, helpOpen: false }),
   closePalette: () => set({ paletteOpen: false }),
-  togglePalette: () => set((s) => ({ paletteOpen: !s.paletteOpen })),
+  togglePalette: () =>
+    set((s) => ({ paletteOpen: !s.paletteOpen, helpOpen: false })),
+
+  openHelp: () => set({ helpOpen: true, paletteOpen: false }),
+  closeHelp: () => set({ helpOpen: false }),
+  toggleHelp: () =>
+    set((s) => ({ helpOpen: !s.helpOpen, paletteOpen: false })),
 
   setTheme: (theme) => {
     set({ theme });

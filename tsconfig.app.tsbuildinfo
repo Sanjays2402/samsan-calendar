@@ -1,1 +1,0 @@
-{"root":["./src/main.tsx","./src/types.ts","./src/components/hotkeys.tsx","./src/lib/colors.ts","./src/lib/date.ts","./src/lib/storage.ts","./src/lib/uid.ts","./src/store/calendar.ts"],"errors":true,"version":"5.6.3"}
