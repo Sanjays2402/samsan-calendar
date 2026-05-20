@@ -1,7 +1,7 @@
-# Screenshot regeneration recipe
+# Screenshot regeneration
 
-These three screenshots ship with the repo and are referenced from the
-top-level README:
+Canonical screenshots live in `design/screenshots/`. The same three files are
+mirrored here so README links resolve from any subtree:
 
 | File                    | View                | Theme |
 | ----------------------- | ------------------- | ----- |
@@ -9,7 +9,20 @@ top-level README:
 | `week-view-light.png`   | Week view (5-day)   | light |
 | `event-editor.png`      | Inline event editor | dark  |
 
-## How to regenerate
+## Automated (preferred)
+
+```bash
+pnpm dev              # in one terminal — starts Vite on :5173 with demo seed
+node scripts/capture-screenshots.mjs --base http://127.0.0.1:5173 --out design/screenshots
+cp design/screenshots/{month-view-dark,week-view-light,event-editor}.png docs/screenshots/
+```
+
+The capture script (`scripts/capture-screenshots.mjs`) drives Playwright at
+1440×900 @ 2× DPR, switches themes via the store, and snaps each view to PNG.
+
+## Manual fallback
+
+If Playwright is unavailable:
 
 1. `make setup && pnpm dev` (cold-load seeds the IDB with the demo set).
 2. Open `http://localhost:5173` in a Chromium-based browser at viewport
@@ -25,13 +38,3 @@ top-level README:
 4. Capture with the OS screenshot tool (macOS: `Cmd+Shift+4`, drag the
    viewport region — **not** the full window/chrome).
 5. Save as PNG at the filename above. Commit the binaries.
-
-## Why we don't auto-generate
-
-A Playwright capture script was considered but rejected: the value of
-these screenshots is showing the design polish, and human framing
-beats automated cropping for marketing-grade assets. They change rarely
-enough that manual regen is fine.
-
-If automation becomes worthwhile later, the entry point is
-`pnpm dlx playwright codegen http://localhost:5173`.

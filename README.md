@@ -6,6 +6,12 @@ drag-edge-to-resize, keyboard-first navigation.
 
 Built with **Vite + React 19 + TypeScript + Tailwind v4 + Zustand + idb**.
 
+![Samsan Calendar — month view, dark theme](design/screenshots/month-view-dark.png)
+
+Lighthouse desktop scores (median of 3 runs, `dist/index.html`):
+**Performance 0.99 · Accessibility 1.00 · Best Practices 1.00 · SEO 1.00**.
+Audit runs in CI on every PR — budgets in [`lighthouserc.json`](lighthouserc.json).
+
 ---
 
 ## Quickstart
@@ -87,15 +93,21 @@ or you'll lose the undo stack.
 
 ## Screenshots
 
-| File                                       | View                                |
-| ------------------------------------------ | ----------------------------------- |
-| `docs/screenshots/month-view-dark.png`     | Month view, dark theme              |
-| `docs/screenshots/week-view-light.png`     | Week view, light theme              |
-| `docs/screenshots/event-editor.png`        | Inline event editor with color picker |
+Month view, dark theme:
 
-> Regenerate with `pnpm dev` running, then capture each view at 1440×900 from
-> the browser. See [`docs/screenshots/README.md`](docs/screenshots/README.md)
-> for the exact recipe.
+![Month view, dark theme](design/screenshots/month-view-dark.png)
+
+Week view, light theme:
+
+![Week view, light theme](design/screenshots/week-view-light.png)
+
+Inline event editor with color picker:
+
+![Inline event editor](design/screenshots/event-editor.png)
+
+> Regenerate with `pnpm dev` running, then `node scripts/capture-screenshots.mjs`
+> (Playwright drives Chromium at 1440×900). See
+> [`docs/screenshots/README.md`](docs/screenshots/README.md) for the manual recipe.
 
 ## CI
 
@@ -109,6 +121,20 @@ Two workflows in `.github/workflows/calendar.yml`:
 Budgets live in [`lighthouserc.json`](lighthouserc.json) at the repo root.
 Workflow is gated to PRs and pushes to `main`. Concurrency is per-ref with
 `cancel-in-progress` so superseded runs are killed automatically.
+
+### Lighthouse — most recent local run
+
+Run: `make lighthouse` (Chrome, desktop preset, 3 passes, `dist/index.html`).
+
+| Category        | Score (worst of 3 runs) | Budget |
+| --------------- | ----------------------- | ------ |
+| Performance     | **0.99**                | ≥ 0.95 |
+| Accessibility   | **1.00**                | ≥ 0.95 |
+| Best Practices  | **1.00**                | ≥ 0.95 |
+| SEO             | **1.00**                | ≥ 0.90 |
+
+Core Web Vitals (median): LCP 0.7s · TBT 0ms · CLS 0. Bundle: 21 kB CSS gz 5.6 kB
++ 395 kB JS gz 115 kB.
 
 ## Design notes
 
