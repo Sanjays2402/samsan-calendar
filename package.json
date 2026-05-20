@@ -12,7 +12,8 @@
     "test:palette": "node --import tsx --test tests/palette.test.ts",
     "test:agenda": "node --import tsx --test tests/agenda.test.ts",
     "test:recur": "node --import tsx --test tests/recur.test.ts",
-    "test:e2e": "node --import tsx --test tests/e2e.smoke.test.ts"
+    "test:e2e": "node --import tsx --test tests/e2e.smoke.test.ts",
+    "test:drag": "node --import tsx --test tests/views.drag.e2e.test.ts"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.7",

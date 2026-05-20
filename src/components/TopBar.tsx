@@ -93,7 +93,16 @@ export function TopBar() {
 
   function pickView(v: ViewMode) {
     if (v === view) return;
-    withViewTransition(() => setView(v));
+    // Important: we do NOT wrap this in withViewTransition. The view swap
+    // replaces the entire canvas (TimeGrid ↔ MonthView ↔ AgendaView), so
+    // there is no visual continuity for the UA snapshot to interpolate. The
+    // 180ms ::view-transition window installs top-layer pseudos that
+    // occlude hit-testing (elementFromPoint returns <html>, pointerdown
+    // routes nowhere) — and a user often clicks a chip immediately after
+    // switching views. Pay the snapshot cost only where it earns its keep:
+    // same-view cursor navigation (`go()` above). The `.fade-in` class on
+    // each view root handles the entrance.
+    setView(v);
   }
 
   function nextTheme() {

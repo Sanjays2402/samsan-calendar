@@ -362,3 +362,37 @@
 .now-dot {
   animation: nowPulse 2.4s ease-in-out infinite;
 }
+
+/* ---------------------------------------------------------------------
+ * View Transitions (SAM-60)
+ * The default UA snapshot animation is ~250ms each direction (500ms
+ * total) and Chromium installs the pseudo-elements in the top layer.
+ * Without overrides, that means ::view-transition-old/new sit ABOVE the
+ * live DOM for ~500ms — long enough that pointer events go to the
+ * snapshot instead of real chips. We:
+ *   1. Tighten duration to feel snappy
+ *   2. Make sure the ENTIRE ::view-transition pseudo tree is
+ *      pointer-transparent so the underlying chips receive pointerdown
+ *      the instant the swap commits (no 500ms dead zone after a view
+ *      switch). Chromium's pseudo-elements inherit pointer-events from
+ *      their nearest pseudo ancestor, NOT from the DOM, so we have to
+ *      hit ::view-transition itself.
+ *   3. Honor prefers-reduced-motion by killing the transition outright
+ * ------------------------------------------------------------------- */
+::view-transition {
+  pointer-events: none;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 180ms;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
+}

@@ -174,7 +174,7 @@ export function CommandPalette() {
         icon: CalendarBlank,
         shortcut: v[0]!.toUpperCase(),
         section: 'view',
-        run: () => withViewTransition(() => setView(v)),
+        run: () => setView(v),
       })),
       {
         kind: 'action',

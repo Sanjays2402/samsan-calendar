@@ -63,10 +63,22 @@ export function MonthView({ onPickEvent }: Props) {
   }, [events, matrix]);
 
   // ---- drag-to-reschedule (by day) ---------------------------------------
+  //
+  // Tracking the target day via `onPointerEnter` on each cell does NOT work
+  // once we `setPointerCapture` on the chip (capture suppresses delivery to
+  // any other element). Earlier versions of MonthView captured on the chip
+  // and counted on pointerenter — which silently never fired.
+  //
+  // New design: capture on the grid root, attach a single `onPointerMove`
+  // there, and use `document.elementFromPoint(x, y)` to find the day cell
+  // under the cursor. Cells are tagged with `data-day-ms="<ms>"` for cheap
+  // lookups. This matches how TimeGrid handles the same problem.
+  const gridRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{
     eventId: string;
     durationMs: number;
     grabDay: number; // day cell where pointer started
+    currentDay: number;
     prev: CalEvent;
   } | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -75,32 +87,45 @@ export function MonthView({ onPickEvent }: Props) {
     if (e.button !== 0) return;
     e.stopPropagation();
     e.preventDefault();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    // Capture on the grid root so onPointerMove keeps firing even if the
+    // pointer leaves the chip's box.
+    gridRef.current?.setPointerCapture?.(e.pointerId);
     dragRef.current = {
       eventId: ev.id,
       durationMs: ev.end - ev.start,
       grabDay: day,
+      currentDay: day,
       prev: ev,
     };
     setDraggingId(ev.id);
   }
 
-  function onCellEnter(day: number) {
+  function cellDayMsFromPoint(x: number, y: number): number | null {
+    const el = document.elementFromPoint(x, y);
+    if (!el) return null;
+    const cell = (el as HTMLElement).closest<HTMLElement>('[data-day-ms]');
+    if (!cell) return null;
+    const ms = Number(cell.dataset.dayMs);
+    return Number.isFinite(ms) ? ms : null;
+  }
+
+  function onGridPointerMove(e: React.PointerEvent) {
     const d = dragRef.current;
     if (!d) return;
+    const day = cellDayMsFromPoint(e.clientX, e.clientY);
+    if (day == null || day === d.currentDay) return;
     const ev = useStore.getState().events[d.eventId];
     if (!ev) return;
     const delta = day - d.grabDay;
-    if (delta === 0) return;
-    const newStart = ev.start + delta * 86_400_000;
+    const newStart = d.prev.start + delta;
     const newEnd = newStart + d.durationMs;
     patchEventLocal(d.eventId, { start: newStart, end: newEnd });
-    dragRef.current = { ...d, grabDay: day };
+    dragRef.current = { ...d, currentDay: day };
   }
 
   function onPointerUp(e: React.PointerEvent) {
     const d = dragRef.current;
-    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+    gridRef.current?.releasePointerCapture?.(e.pointerId);
     if (!d) return;
     const current = useStore.getState().events[d.eventId];
     if (current && (current.start !== d.prev.start || current.end !== d.prev.end)) {
@@ -170,12 +195,15 @@ export function MonthView({ onPickEvent }: Props) {
 
       {/* 6 × 7 cells */}
       <div
+        ref={gridRef}
         className="flex-1 grid"
         style={{
           gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
           gridTemplateRows: 'repeat(6, minmax(0, 1fr))',
           background: 'var(--bg)',
+          touchAction: 'none',
         }}
+        onPointerMove={onGridPointerMove}
       >
         {matrix.flatMap((row, rowIdx) =>
           row.map((day, colIdx) => {
@@ -192,7 +220,6 @@ export function MonthView({ onPickEvent }: Props) {
                 today={today}
                 topRow={rowIdx === 0}
                 leftCol={colIdx === 0}
-                onCellEnter={onCellEnter}
                 onCellClick={(anchor) => quickCreateOnDay(day, anchor)}
                 onCellDoubleClick={() => jumpToDay(day)}
               >
@@ -355,7 +382,6 @@ function DayCell({
   today,
   topRow,
   leftCol,
-  onCellEnter,
   onCellClick,
   onCellDoubleClick,
   children,
@@ -365,7 +391,6 @@ function DayCell({
   today: boolean;
   topRow: boolean;
   leftCol: boolean;
-  onCellEnter: (day: number) => void;
   onCellClick: (anchor: { x: number; y: number }) => void;
   onCellDoubleClick: () => void;
   children: React.ReactNode;
@@ -373,10 +398,7 @@ function DayCell({
   const [hover, setHover] = useState(false);
   return (
     <div
-      onPointerEnter={() => {
-        setHover(true);
-        onCellEnter(day);
-      }}
+      onPointerEnter={() => setHover(true)}
       onPointerLeave={() => setHover(false)}
       onClick={(e) => {
         const target = e.target as HTMLElement;
@@ -385,6 +407,7 @@ function DayCell({
       }}
       onDoubleClick={onCellDoubleClick}
       className="relative overflow-hidden"
+      data-day-ms={day}
       style={{
         borderTop: topRow ? 'none' : '1px solid var(--border-subtle)',
         borderLeft: leftCol ? 'none' : '1px solid var(--border-subtle)',
