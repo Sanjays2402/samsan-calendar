@@ -12,6 +12,7 @@ import {
   Plus,
   Sun,
   Target,
+  UploadSimple,
 } from '@phosphor-icons/react';
 import {
   Fragment,
@@ -24,20 +25,26 @@ import {
 import {
   addDaysMs,
   addMinutesMs,
+  endOfDayMs,
+  endOfMonthMs,
+  endOfWeekMs,
   fmt,
   snapToMinutes,
   startOfDayMs,
+  startOfMonthMs,
+  startOfWeekMs,
   todayMs,
 } from '../lib/date';
 import { fuzzyMatch, highlightChunks } from '../lib/fuzzy';
-import { downloadIcs } from '../lib/ics';
+import { downloadIcs, parseIcs } from '../lib/ics';
 import { parseNlDate } from '../lib/nl-date';
 import { uid } from '../lib/uid';
 import { withViewTransition } from '../lib/view-transition';
 import { useStore } from '../store/calendar';
+import { selectEventsInRange } from '../store/selectors';
 import type { CalEvent, ViewMode } from '../types';
 
-type Section = 'create' | 'navigate' | 'view' | 'theme' | 'export' | 'history' | 'events' | 'jump' | 'help';
+type Section = 'create' | 'navigate' | 'view' | 'theme' | 'export' | 'import' | 'history' | 'events' | 'jump' | 'help';
 
 const SECTION_LABEL: Record<Section, string> = {
   create: 'Create',
@@ -45,6 +52,7 @@ const SECTION_LABEL: Record<Section, string> = {
   view: 'View',
   theme: 'Theme',
   export: 'Export',
+  import: 'Import',
   history: 'History',
   jump: 'Jump to',
   events: 'Events',
@@ -94,6 +102,27 @@ function buildEventHaystack(ev: CalEvent): string {
   return [ev.title || 'Untitled', ev.location ?? '', ev.notes ?? '']
     .filter(Boolean)
     .join(' · ');
+}
+
+/**
+ * The ms range covered by the current view, exclusive end.
+ *
+ * Matches the agenda view's 60-day forward window so the export covers
+ * exactly what's on screen.
+ */
+function viewRangeMs(view: ViewMode, cursor: number): [number, number] {
+  switch (view) {
+    case 'day':
+      return [startOfDayMs(cursor), endOfDayMs(cursor) + 1];
+    case 'week':
+      return [startOfWeekMs(cursor), endOfWeekMs(cursor) + 1];
+    case 'month':
+      return [startOfMonthMs(cursor), endOfMonthMs(cursor) + 1];
+    case 'agenda': {
+      const from = startOfDayMs(cursor);
+      return [from, endOfDayMs(addDaysMs(from, 59)) + 1];
+    }
+  }
 }
 
 export function CommandPalette() {
@@ -242,6 +271,34 @@ export function CommandPalette() {
             `samsan-calendar-${fmt(Date.now(), 'yyyy-MM-dd')}.ics`,
           );
         },
+      },
+      {
+        kind: 'action',
+        id: 'export-view',
+        label: `Export this ${view} to .ics`,
+        searchHaystack: 'export download ics calendar file visible view range current',
+        hint: 'download only the events in the current view',
+        icon: DownloadSimple,
+        section: 'export',
+        run: () => {
+          const [from, to] = viewRangeMs(view, cursor);
+          const inView = selectEventsInRange(events, from, to);
+          if (inView.length === 0) return;
+          downloadIcs(
+            inView,
+            `samsan-calendar-${view}-${fmt(cursor, 'yyyy-MM-dd')}.ics`,
+          );
+        },
+      },
+      {
+        kind: 'action',
+        id: 'import-ics',
+        label: 'Import events from .ics',
+        searchHaystack: 'import upload ics calendar file',
+        hint: 'import events from a calendar file',
+        icon: UploadSimple,
+        section: 'import',
+        run: () => importIcsFromFile(),
       },
       {
         kind: 'action',

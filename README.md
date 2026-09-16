@@ -59,6 +59,21 @@ src/
 | `d`       | switch to day view   |
 | `Esc`     | close editor / modal |
 
+## Import & export
+
+Open the command palette (`⌘K`) for standards-compliant `.ics` (RFC 5545)
+round-trips:
+
+- **Export all events to .ics** — the whole calendar in one file.
+- **Export this view to .ics** — only what's on screen: the visible day,
+  week, month, or the agenda's 60-day window. The filename records the view
+  and cursor date, e.g. `samsan-calendar-week-2026-09-14.ics`.
+- **Import events from .ics** — upload a calendar file; simple recurring
+  series are re-expanded into masters with their `RRULE` intact.
+
+Recurring events export as a single `VEVENT` carrying the `RRULE` — the
+expanded occurrences you see in the grid are never duplicated into the file.
+
 ## Scripts
 
 | Command          | What it does                                     |
